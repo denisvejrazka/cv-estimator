@@ -26,7 +26,7 @@ def parse_pdf(path: str) -> str:
     
     return text
 
-
+# Extract from .docx (CV table aware approach)
 def parse_docx(path: str) -> str:
     doc = Document(path)
     parts = [para.text for para in doc.paragraphs]

@@ -1,10 +1,7 @@
 import llm_service
-import parser
 from sklearn.metrics.pairwise import cosine_similarity
 
-
-applicant = parser.parse("jn_cv.pdf")
-
+# 0-15
 def score_education(applicant_education: str) -> int:
     mapping = {
         "none":        0,
@@ -15,7 +12,7 @@ def score_education(applicant_education: str) -> int:
     }
     return mapping.get(applicant_education, 0)
 
-
+# 0-25
 def score_seniority(applicant_roles: list[str]) -> int:
     if not applicant_roles:
         return 0
@@ -25,22 +22,26 @@ def score_seniority(applicant_roles: list[str]) -> int:
     for role in applicant_roles:
         role_lower = role.lower()
         
-        if any(k in role_lower for k in ["ceo", "cto", "coo", "cfo", "cpo", "director"]):
+        if any(k in role_lower for k in ["ceo", "cto", "coo", "cfo", "cpo", "cmo", "director"]):
             best = max(best, 25)
-        elif any(k in role_lower for k in ["senior", "lead", "principal"]):
+        elif any(k in role_lower for k in ["senior", "sr.", "lead", "principal"]):
             best = max(best, 20)
+        elif any(k in role_lower for k in ["medior"]):
+            best = max(best, 15)
         elif any(k in role_lower for k in ["junior"]):
             best = max(best, 10)
         elif any(k in role_lower for k in ["intern", "trainee"]):
             best = max(best, 5)
+        elif any(k in role_lower for k in ["volunteer"]):
+            best = max(best, 3)
         else:
             best = max(best, 15)
     
     return best
 
-
+# 0-30
 def score_years_of_exp(applicant_yrs_exp: int) -> int:
-    if applicant_yrs_exp <= 0:
+    if applicant_yrs_exp == 0:
         return 0
     if applicant_yrs_exp <= 2:
         return 10
@@ -52,12 +53,14 @@ def score_years_of_exp(applicant_yrs_exp: int) -> int:
         return 25
     return 30
 
-
+# 0-10 (based on languages, leadership, certifications)
 def score_other(applicant_langs: list[str], applicant_leader: bool, applicant_certified: bool) -> int:
     score = 0
     
     if len(applicant_langs) > 1:
         score += 3
+    if len(applicant_langs) == 1:
+        score += 1
     if applicant_leader:
         score += 5
     if applicant_certified:
@@ -65,8 +68,17 @@ def score_other(applicant_langs: list[str], applicant_leader: bool, applicant_ce
     
     return score
 
-
+# 0-20
 def score_skills(applicant_skills: list[str], role_skills: list[str], threshold: float = 0.55) -> dict:
+    """
+    Scores how well the applicant's skills match the required skills for a role.
+
+    Embeds both skill lists and computes cosine similarity between them.
+    Each required skill is matched against the closest applicant skill — if the
+    similarity exceeds the threshold, it counts as a match, otherwise as missing.
+
+    The final score is scaled to a 0–20 range (20 = all skills matched).
+    """
     if not applicant_skills or not role_skills:
         return {"score": 0, "matched": [], "missing": []}
 
@@ -92,7 +104,7 @@ def score_skills(applicant_skills: list[str], role_skills: list[str], threshold:
             missing.append(role_skill)
 
     raw_score = round(len(matched) / len(role_skills) * 100)
-    scaled_score = round(raw_score * 20 / 100)  # 0-100 → 0-20
+    scaled_score = round(raw_score * 20 / 100)
 
     return {
         "score": scaled_score,
@@ -100,7 +112,7 @@ def score_skills(applicant_skills: list[str], role_skills: list[str], threshold:
         "missing": missing
     }
 
-
+# compute 0-100 score
 def compute_seniority_score(applicant, skills_dict) -> dict:
     education   = score_education(applicant.education_level)
     seniority   = score_seniority(applicant.roles)
@@ -111,14 +123,12 @@ def compute_seniority_score(applicant, skills_dict) -> dict:
     total = education + seniority + experience + other + skills
 
     return {
-        "total": total,          # 0-100
+        "total": total,          
         "breakdown": {
-            "skills":     skills,      # max 20
-            "education":  education,   # max 15
-            "seniority":  seniority,   # max 25
-            "experience": experience,  # max 30
-            "other":      other        # max 10
+            "skills":     skills,      
+            "education":  education,   
+            "seniority":  seniority,   
+            "experience": experience,  
+            "other":      other        
         }
     }
-# print(applicant.education_level)
-# print(compute_seniority_score(applicant=applicant, skills_dict=score_skills(applicant_skills=applicant.skills, role_skills=llm_service.get_key_skills(applicant.role))))
