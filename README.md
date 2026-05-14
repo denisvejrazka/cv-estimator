@@ -34,7 +34,7 @@ AI-powered CV analyzer that extracts structured data from a PDF/DOCX resume, sco
 ## Setup
 
 ```bash
-git clone https://github.com/denisvejrazka/cv-estimator
+git clone https://github.com/denisvejrazka/cv-estimator.git
 cd ai_estimator
 
 python -m venv .venv
